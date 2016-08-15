@@ -1230,7 +1230,7 @@
         "tags": [
           "Topics"
         ],
-        "operationId": "Topics_GetTopic",
+        "operationId": "Topics_Get",
         "description": "Returns the description for the specified topic",
         "externalDocs": {
           "url": "https://msdn.microsoft.com/en-us/library/azure/mt639399.aspx"
@@ -1415,18 +1415,18 @@
             "description": "The namespace name"
           },
           {
-            "name": "authorizationRuleName",
-            "in": "path",
-            "required": true,
-            "type": "string",
-            "description": "Authorization rule name."
-          },
-          {
             "name": "topicName",
             "in": "path",
             "required": true,
             "type": "string",
             "description": "The topic name."
+          },
+          {
+            "name": "authorizationRuleName",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Authorization rule name."
           },
           {
             "$ref": "#/parameters/ApiVersionParameter"
@@ -2153,7 +2153,7 @@
           "description": "Key that needs to be regenerated .",
           "enum": [
             "PrimaryKey",
-            "SecondayKey"
+            "SecondaryKey"
           ],
           "x-ms-enum": {
             "name": "Policykey",
@@ -2326,7 +2326,7 @@
             "Unknown"
           ],
           "x-ms-enum": {
-            "name": "EntityStatus",
+            "name": "QueueEntityStatus",
             "modelAsString": false
           }
         },
