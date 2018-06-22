@@ -269,7 +269,7 @@ Query parameters are appended to the request URI. They can be specified as requi
 ```
 The user doesn't need to know where the parameter is placed. Doc comments surface the required/optional distinction.
 
-####Body Parameters<a name="BodyParameters"></a>
+#### Body Parameters<a name="BodyParameters"></a>
 Body parameters include schema for the payload. In this example, the schema element is a `$ref` to the type details 
 in the `#/definitions` section of the spec. More on the `#/definitions` later.
 ```json5
@@ -291,7 +291,24 @@ in the `#/definitions` section of the spec. More on the `#/definitions` later.
 ```
 
 #### Header Parameters<a name="HeaderParameters"></a>
->TODO: Header parameters
+Header parameters are sent as part of the HTTP request header.
+In general, reserved headers (`Content-Length`, `Content-Type`, ...) should not be documented since their values are derivable (e.g. from the request body) and not really part of the protocol specified by the OpenAPI definition.
+Rather, they are part of the REST standard that the protocol is supposed to adhere to anyway.
+
+However, there are rare scenarios for making the `Content-Type` customizable as part of a request, e.g. in case of a binary/stream request body.
+The media type of binary request bodies is not reliably derivable: Maybe the service endpoint accepts PNG, JPEG or BMP images, which is expressed in OpenAPI using
+``` yaml
+consumes:
+  - image/png
+  - image/jpeg
+  - image/bmp
+```
+and give the request body type `file`.
+Now, when a request is made, the protocol has to somehow communicate to the server which of the media types the body has.
+Since there is a range of possibilities (and it's certainly not a protocol's job to parse and classify binary data), we suggest adding a `Content-Type` header parameter to the operation's definition.
+Unless one provides an `enum` restriction for that parameter, [AutoRest](https://github.com/Azure/autorest) will automatically make the parameter an enum with values drawn from the `consumes` declaration.
+This allows for deduplication and hence prevents potential bugs.
+More information on how [AutoRest](https://github.com/Azure/autorest) treats a `Content-Type` header parameter can be found [here](https://github.com/Azure/autorest/tree/master/Samples/test/stream-with-content-type).
 
 #### FormData Parameters<a name="FormDataParameters"></a>
 >Note: FormData parameters are not currently supported by AutoRest.
@@ -396,6 +413,35 @@ Please note, that the use of "x-ms-paths" should be minimized to the above scena
 ## Defining Model Types<a name="DefiningModel"></a>
 The request body and response definitions become simple model types in the generated code. The models include 
 basic validation methods, but are generally stateless serialization definitions.
+
+### Understanding the importance of "type" keyword while definining model types.
+"Type-specific" keywords such as properties, items, minLength, etc. do not enforce a type on the schema. It works the other way around – when an instance is validated against a schema, these keywords only apply when the instance is of the corresponding type, otherwise they are ignored. Here's the relevant part of the [JSON Schema Validation](https://tools.ietf.org/html/draft-fge-json-schema-validation-00#section-4.1) spec:
+
+> 4.1. Keywords and instance primitive types
+Some validation keywords only apply to one or more primitive types. When the primitive type of the instance cannot be validated by a given keyword, validation for this keyword and instance SHOULD succeed.
+
+For example, consider this schema:
+
+```yaml
+definitions:
+  Something:
+    properties:
+      id:
+        type: integer
+    required: [id]
+    minLength: 8
+```
+It's a valid schema, even though it combines object-specific keywords properties and required and string-specific keyword minLength. This schema means:
+- If the instance is an object, it must have an integer property named id. For example, `{"id": 4}` and `{"id": -1, "foo": "bar"}` are valid, but `{}` and `{"id": "ACB123"}` are not.
+- If the instance is a string, it must contain at least 8 characters. `"Hello, world!"` is valid, but `""` and `abc` are not.
+- Any instances of other types are valid - `true`, `false`, `-1.234`, `[]`, `[1, 2, 3]`, `[1, "foo", true]`, etc.
+(Except `null` - OpenAPI 2.0 does not have the `null` type and does not support `null` except in extension properties. OpenAPI 3.0 supports the `null` value for schemas with nullable: true.)
+
+If there are tools that infer the `type` from other keywords (for example, handle schemas with no `type` but with `properties` as always objects), then these tools are not exactly following the OpenAPI Specification and JSON Schema.
+
+> Bottom line: If a schema must always be an object, add `"type": "object"` explicitly. Otherwise you might get unexpected results.
+
+**Credits** - Stack Overflow [link](https://stackoverflow.com/questions/47374980/schema-object-without-a-type-attribute-in-swagger-2-0).
 
 ### Model Inheritance<a name="ModelInheritance"></a>
 Swagger schema allows for specifying that one type is `allOf` other types, meaning that the entire specification of 
@@ -784,7 +830,7 @@ terminal states`Succeeded|Failed|Canceled`.
 }
 ```
 
-##Global parameters<a name="globalParam"></a>
+## Global parameters<a name="globalParam"></a>
 Swagger allows for parameters to be defined separately from the operation where they are used. By convention, AutoRest 
 treats global parameter definitions as Client properties. For example, almost all Azure Resource Manager APIs require 
 `subscriptionId` and `api-version`. These are defined as global parameters and become properties of the client.
@@ -836,4 +882,4 @@ If an operation requires that a parameter is exposed as a method parameter, it i
 
 TODO: naming standards for operations Create, CreateOrUpdate, Update (respect etag), Get, List, Delete, Patch
 TODO: patch => no validate
-[Swagger-spec2.0]:https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md
+[Swagger-spec2.0](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md)
